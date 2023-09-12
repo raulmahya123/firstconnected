@@ -28,6 +28,7 @@ func main() {
 	routes.NilaiRoute(router)     //add this
 	routes.MahasiswaRoute(router) //add this
 	routes.MataKuliahRoute(router)
+	routes.GetallRoute(router)
 
 	router.Run("localhost:8080")
 }

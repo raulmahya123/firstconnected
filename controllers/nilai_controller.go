@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"gin-mongo-api/configs"
 	"gin-mongo-api/models"
 	"gin-mongo-api/responses"
@@ -24,16 +25,24 @@ func CreateNilai() gin.HandlerFunc {
 		var nilai models.Nilai
 		defer cancel()
 
-		//validate the request body
+		// Validate the request body
 		if err := c.BindJSON(&nilai); err != nil {
 			c.JSON(http.StatusBadRequest, responses.NilaiResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
 			return
 		}
 
-		//use the validator library to validate required fields
+		// Use the validator library to validate required fields
 		if validationErr := validate_nilai.Struct(&nilai); validationErr != nil {
 			c.JSON(http.StatusBadRequest, responses.NilaiResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": validationErr.Error()}})
 			return
+		}
+
+		// Check if the "Absensi" is less than 8 and set "Nilai_akhir" to 40 if it is
+		if nilai.Presensi < "8" {
+			nilai.Nilai_akhir = "E"
+			// } else if nilai.Nilai_akhir < "60" {
+			// 	c.JSON(http.StatusBadRequest, responses.NilaiResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": "Nilai harus lebih dari atau sama dengan 60"}})
+			// 	return
 		}
 
 		newAbsensi := models.Nilai{
@@ -172,5 +181,47 @@ func GetAllNilais() gin.HandlerFunc {
 		c.JSON(http.StatusOK,
 			responses.NilaiResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": vertebratas}},
 		)
+	}
+}
+
+func GetNPM() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		NPM := c.Param("npm")
+		var nilai models.Nilai
+		defer cancel()
+
+		// Log the received NPM value
+		fmt.Printf("Received NPM value: %s\n", NPM)
+
+		objId, err := primitive.ObjectIDFromHex(NPM)
+		if err != nil {
+			// Log the error for invalid NPM format
+			fmt.Printf("Invalid NPM format error: %v\n", err)
+			c.JSON(http.StatusBadRequest, responses.NilaiResponse{Status: http.StatusBadRequest, Message: "error", Data: map[string]interface{}{"data": "Invalid NPM format"}})
+			return
+		}
+
+		// Log the ObjectID obtained from the NPM value
+		fmt.Printf("ObjectID from NPM: %s\n", objId.Hex())
+
+		err = nilaiCollection.FindOne(ctx, bson.M{"NPM_ms": objId}).Decode(&nilai)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				// Log when Nilai is not found
+				fmt.Println("Nilai not found in the database")
+				c.JSON(http.StatusNotFound, responses.NilaiResponse{Status: http.StatusNotFound, Message: "error", Data: map[string]interface{}{"data": "Nilai not found"}})
+				return
+			}
+			// Log other internal server errors
+			fmt.Printf("Internal server error: %v\n", err)
+			c.JSON(http.StatusInternalServerError, responses.NilaiResponse{Status: http.StatusInternalServerError, Message: "error", Data: map[string]interface{}{"data": err.Error()}})
+			return
+		}
+
+		// Log the successful response
+		fmt.Println("Successfully retrieved Nilai from the database")
+
+		c.JSON(http.StatusOK, responses.NilaiResponse{Status: http.StatusOK, Message: "success", Data: map[string]interface{}{"data": nilai}})
 	}
 }

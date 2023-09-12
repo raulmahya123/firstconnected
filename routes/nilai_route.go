@@ -12,4 +12,5 @@ func NilaiRoute(router *gin.Engine) {
 	router.PUT("/nilai/:nialiID", controllers.EditNilai())
 	router.DELETE("/nilai/:nialiID", controllers.DeleteNilai())
 	router.GET("/nilais", controllers.GetAllNilais())
+	router.GET("/nilaii/:npm", controllers.GetNPM())
 }
